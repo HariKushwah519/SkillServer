@@ -10,6 +10,7 @@ const bookingSchema = new mongoose.Schema(
     provider: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "provider",
+      required: true,
     },
     services: [
       {
@@ -32,11 +33,11 @@ const bookingSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Compeleted", "Failed"],
+      enum: ["Pending", "Completed", "Failed"],
       default: "Pending",
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("booking", bookingSchema);
+module.exports = mongoose.model("booking",bookingSchema);

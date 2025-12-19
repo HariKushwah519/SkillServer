@@ -1,41 +1,49 @@
 const mongoose = require("mongoose");
-
 const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
+    {
+        firebaseUid: {
+            type: String,
+            unique: true,
+            sparse: true,
+        },
+        name: {
+            type:String,
+            required:true,
+            trim:true,
+        },
+         email: {
+            type:String,
+            sparse:true,
+            trim:true,
+            unique:true,
+        },
+         phone: {
+            type:String,
+            required:true,
+            trim:true,
+            unique:true,
+        },
+         password: {
+            type:String,
+            trim:true,
+            select: false,
+        },
+        role: {
+            type:String,
+            enum: ["user","provider","admin"],
+            default: "user"
+        },
+        authProvider: {
+            type: String,
+            enum: ["google","phone","manual"],
+            required: true,
+        },
+        profileImage: {
+            type: String,
+            trim: true
+        },
     },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    phone: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    password: {
-      type: String,
-      trim: true,
-    },
-
-    role: {
-      type: String,
-      required: true,
-      enum: ["user", "provider", "admin"],
-    },
-
-    profileImage: {
-      type: String,
-      trim: true,
-    },
-  },
-  { timestamps: true }
+    {timestamps: true}
 );
 
-module.exports = mongoose.model("user", userSchema)
+module.exports = mongoose.model("user",userSchema);
