@@ -1,99 +1,112 @@
-const userModel = require("../models/userModel");
 const jwt = require("jsonwebtoken");
-const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const saltRounds = 10;
+const mongoose = require("mongoose");
+const userModel = require("../models/userModel");
 const {
   isValid,
   isValidName,
-  isValidPhone,
   isValidEmail,
   isValidPassword,
+  isValidContact,
 } = require("../utils/validator");
 
-// Signunp User
+//  Signup User (Manual)
 const signupUser = async (req, res) => {
   try {
-    let userData = req.body;
+    let data = req.body;
 
-    if (!userData || Object.keys(userData).length === 0) {
-      return res.status(400).json({ msg: "Bad Request!! No Data Provided" });
+    // Validations
+    if (!data || Object.keys(data).length === 0) {
+      return res.status(400).json({ msg: "Bad Request ! No Data Provided." });
     }
+    let { name, email, phone, password, authProvider } = data;
 
-    let { name, email, phone, password, authProvider } = userData;
-    // Auth Provider
     if (!isValid(authProvider)) {
-      return res.status(400).json({ msg: "AuthProvider is required" });
+      return res.status(400).json({ msg: "Auth Provider is Required" });
     }
+
     if (!["google", "phone", "manual"].includes(authProvider)) {
-      return res.status(400).json({ msg: "Invalid AuthProvider" });
+      return res.status(400).json({ msg: "Invalid Auth Provider" });
     }
 
     if (authProvider !== "manual") {
       return res.status(400).json({
-        msg: "Use Respective login Api for google or OTP Authentication",
+        msg: "Use Respective login API for google or OTP Authentication",
       });
     }
+
     if (authProvider === "manual") {
       // Name Validation
       if (!isValid(name)) {
-        return res.status(400).json({ msg: "name is required" });
+        return res.status(400).json({ msg: "Name is Required" });
       }
+
       if (!isValidName(name)) {
         return res.status(400).json({ msg: "Invalid Name" });
       }
+
       // Email Validation
       if (!isValid(email)) {
-        return res.status(400).json({ msg: "email is required" });
+        return res.status(400).json({ msg: "Email is Required" });
       }
+
       if (!isValidEmail(email)) {
         return res.status(400).json({ msg: "Invalid Email" });
       }
+
       let duplicateEmail = await userModel.findOne({ email });
+
       if (duplicateEmail) {
-        return res.status(400).json({ msg: "Email Already Exist" });
+        return res.status(400).json({ msg: "Email Already Exists" });
       }
-      // Phone Validation
+
+      // Phone Number Validation
       if (!isValid(phone)) {
-        return res.status(400).json({ msg: "Phone Number is required" });
+        return res.status(400).json({ msg: "Phone Number is Required" });
       }
-      if (!isValidPhone(phone)) {
+
+      if (!isValidContact(phone)) {
         return res.status(400).json({ msg: "Invalid Phone Number" });
       }
+
       let duplicatePhone = await userModel.findOne({ phone });
       if (duplicatePhone) {
-        return res.status(400).json({ msg: "Phone Number Already Exist" });
+        return res.status(400).json({ msg: "Phone Number Already Exists" });
       }
+
       // Password Validation
       if (!isValid(password)) {
-        return res.status(400).json({ msg: "Phone Number is required" });
+        return res.status(400).json({ msg: "Password is Required" });
       }
+
       if (!isValidPassword(password)) {
         return res.status(400).json({ msg: "Invalid Password" });
       }
-      let hashedPassword = await bcrypt.hash(password, saltRounds);
-      userData.password = hashedPassword;
+
+      let hashedPassword = await bcrypt.hash(password, 10);
+      data.password = hashedPassword;
     }
 
-    // Create User
-    const createdUser = await userModel.create(userData);
+    data.role = "user";
+
+    let userCreated = await userModel.create(data);
     return res
       .status(201)
-      .json({ msg: "User Registered SuccessFully", user: createdUser });
+      .json({ msg: "User Registered Successfully", userData: userCreated });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
+    return res.status(500).json({ msg: "Internal Server Error", error });
   }
 };
 
-// Login User
+// Login User (Manual)
 const loginUser = async (req, res) => {
   try {
-    let userData = req.body;
+    let data = req.body;
 
     // Validation
-    if (Object.keys(userData).length === 0) {
-      return res.status(400).json({ msg: "Bad Request !! No Data Provided" });
+    if (!data || Object.keys(data).length === 0) {
+      return res.status(400).json({ msg: "Bad Request ! No Data Provided." });
     }
 
     let { email, password, authProvider } = data;
@@ -103,34 +116,28 @@ const loginUser = async (req, res) => {
     }
 
     if (authProvider !== "manual") {
-      return res
-        .status(400)
-        .json({
-          msg: "Use Respective login API for google or OTP Authentication",
-        });
+      return res.status(400).json({
+        msg: "Use Respective login API for google or OTP Authentication",
+      });
     }
 
     if (!isValid(email) || !isValidEmail(email)) {
-      return res.status(400).json({ msg: "Email is Missing or Invalid" });
+      return res.status(400).json({ msg: "Email is Missing Or Invalid" });
     }
 
     if (!isValid(password)) {
-      return res.status(400).json({ msg: "Password is required" });
+      return res.status(400).json({ msg: "Password is Required" });
     }
 
     let user = await userModel.findOne({ email }).select("+password");
-
     if (!user) {
-      return res.status(400).json({ msg: "User Not Found" });
+      return res.status(404).json({ msg: "User Not Found" });
     }
 
     if (user.authProvider !== "manual") {
-      return res
-        .status(400)
-        .json({
-          msg: "This Email Registered using ${user.authProvider} ",
-          login,
-        });
+      return res.status(400).json({
+        msg: `This Email Registered using ${user.authProvider} login`,
+      });
     }
 
     let isPasswordMatch = await bcrypt.compare(password, user.password);
@@ -143,17 +150,16 @@ const loginUser = async (req, res) => {
         userId: user._id,
         role: user.role,
       },
-      process.env,
-      JWT_SECRET_KEY,
+      process.env.JWT_SECRET_KEY,
       {
-        expiresIn: "24h",
+        expiresIn: "24hr",
       }
     );
 
-    return res.status(200).json({ msg: "Login Successfull", token });
+    return res.status(200).json({ msg: "Login Successful", token });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
+    return res.status(500).json({ msg: "Internal Server Error", error });
   }
 };
 
@@ -162,7 +168,7 @@ const otpLogin = async (req, res) => {
   try {
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
+    return res.status(500).json({ msg: "Internal Server Error", error });
   }
 };
 
@@ -171,176 +177,192 @@ const googleLogin = async (req, res) => {
   try {
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
+    return res.status(500).json({ msg: "Internal Server Error", error });
   }
 };
 
 // Get User Profile
 const getUserProfile = async (req, res) => {
   try {
-    let id = req.params.id;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ msg: "Invalid Id" });
+    let userId = req.userId;
+
+    if (!userId) {
+      return res.status(400).json({ msg: "User Id is required" });
     }
-    const user = await userModel.findById(id);
+
+    let user = await userModel.findById(userId).select("-password");
+
     if (!user) {
       return res.status(404).json({ msg: "User Not Found" });
     }
-    return res.status(200).json({ user });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
-  }
-};
 
-// Get All Profile (Admin,Provider)
-const getAllProfiles = async (req, res) => {
-  try {
-    let Users = await userModel.find();
-    if (Object.keys(Users).length === 0) {
-      return res.status(404).json("No User Found");
-    }
-    return res.status(200).json({ Users });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
-  }
-};
-
-// Update User
-
-const updateUser = async (req, res) => {
-  try {
-    let id = req.params.id;
-    userData = req.body;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ msg: "Invalid Id" });
-    }
-
-    if (Object.keys(userData).length === 0) {
-      return res.status(400).json({ msg: "Bad Request ! No Data Provided." });
-    }
-
-    let { name, email, phone, password, role } = userData;
-    // Name Validation
-    if (name !== undefined) {
-      if (!isValid(phone)) {
-        return res.status(400).json({ msg: "Phone Number is required" });
-      }
-      if (!isValidPhone(phone)) {
-        return res.status(400).json({ msg: "Invalid Phone Number" });
-      }
-    }
-    // Email Validation
-    if (email !== undefined) {
-      if (!isValid(email)) {
-        return res.status(400).json({ msg: "email is required" });
-      }
-      if (!isValidEmail(email)) {
-        return res.status(400).json({ msg: "Invalid Email" });
-      }
-      let duplicateEmail = await userModel.findOne({ email });
-      if (duplicateEmail) {
-        return res.status(400).json({ msg: "Email Already Exist" });
-      }
-    }
-    // Phone Validation
-    if (phone !== undefined) {
-      if (!isValid(phone)) {
-        return res.status(400).json({ msg: "Contact Number is Required" });
-      }
-
-      if (!isValidContact(phone)) {
-        return res.status(400).json({ msg: "Invalid Contact Number" });
-      }
-
-      let duplicatePhone = await userModel.findOne({ phone });
-      if (duplicatePhone) {
-        return res.status(400).json({ msg: "Contact Number Already Exists" });
-      }
-    }
-    // Password Validation
-    if (password !== undefined) {
-      if (!isValidPassword(password)) {
-        return res.status(400).json({ msg: "Invalid Password" });
-      }
-      // Password encryption
-      let hashedPassword = await bcrypt.hash(password, saltRounds);
-      userData.password = hashedPassword;
-    }
-    // Role Validation
-    if (role !== undefined) {
-      if (!isValid(role)) {
-        return res.status(400).json({ msg: "Role is required" });
-      }
-      const roles = ["user", "provider", "admin"];
-      if (!roles.includes(role)) {
-        return res.status(400).json({
-          msg: "Invalid role. Allowed roles are user, provider, admin",
-        });
-      }
-    }
-    // Update
-    let updatedUser = await userModel.findByIdAndUpdate(id, userData, {
-      new: true,
+    return res.status(200).json({
+      msg: "User Profile Fetched Successfully",
+      data: user,
     });
-    if (!updatedUser) {
-      return res.status(404).json({ msg: "User Not Found" });
-    }
-    return res
-      .status(200)
-      .json({ msg: "User Updated SuccessFully", updatedUser });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
+    return res.status(500).json({ msg: "Internal Server Error", error });
+  }
+};
+
+//  Get All Users (Admin)
+const getAllUsers = async (req, res) => {
+  try {
+    if (req.userRole !== "admin") {
+      return res.status(403).json({ msg: "Access Denied! Admin Only" });
+    }
+
+    let users = await userModel
+      .find()
+      .select("-password")
+      .sort({ createdAt: -1 });
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({ msg: "No Users Found" });
+    }
+
+    return res.status(200).json({
+      msg: "Users Fetched Successfully",
+      totalUsers: users.length,
+      data: users,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ msg: "Internal Server Error", error });
+  }
+};
+
+//  Update User Profile
+const updateUserProfile = async (req, res) => {
+  try {
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ msg: "Internal Server Error", error });
   }
 };
 
 // Delete User
 const deleteUser = async (req, res) => {
   try {
-    let id = req.params.id;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ msg: "Invalid Id" });
+    let userId = req.params.userId || req.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: "Invalid User Id" });
     }
 
-    let deletedUser = await userModel.findByIdAndDelete(id);
+    let deletedUser = await userModel.findByIdAndDelete(userId);
+
     if (!deletedUser) {
       return res.status(404).json({ msg: "User Not Found" });
     }
 
-    return res.status(200).json({ msg: "User Deleted Successfully" });
+    return res.status(200).json({
+      msg: "User Deleted Successfully",
+    });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
+    return res.status(500).json({ msg: "Internal Server Error", error });
+  }
+};
+
+// Block Unblock User (Admin)
+const blockUnblockUser = async (req, res) => {
+  try {
+    let userId = req.params.userId;
+    let { isBlocked } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: "Invalid User Id" });
+    }
+
+    if (typeof isBlocked !== "boolean") {
+      return res.status(400).json({ msg: "IsBlocked Must be a Boolean Value" });
+    }
+
+    let user = await userModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ msg: "User Not Found" });
+    }
+
+    if (user.role === "admin") {
+      return res.status(403).json({ msg: "Admin Cannot be Blocked" });
+    }
+
+    user.isBlocked = isBlocked;
+    await user.save();
+
+    return res.status(200).json({
+      msg: `User ${isBlocked ? "Blocked" : "Unblocked"} Successfully`,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ msg: "Internal Server Error", error });
   }
 };
 
 // Change Password
 const changePassword = async (req, res) => {
   try {
+    let userId = req.userId;
+
+    let { oldPassword, newPassword } = req.body;
+
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({ msg: "Bad Request ! No Data Provided." });
+    }
+
+    if (!isValid(oldPassword)) {
+      return res.status(400).json({ msg: "Old Password is Required" });
+    }
+
+    if (!isValid(newPassword)) {
+      return res.status(400).json({ msg: "New Password is Required" });
+    }
+
+    if (!isValidPassword(newPassword)) {
+      return res.status(400).json({ msg: "Invalid New Password" });
+    }
+
+    let user = await userModel.findById(userId).select("+password");
+
+    if (!user) {
+      return res.status(404).json({ msg: "User Not Found" });
+    }
+
+    if (user.authProvider !== "manual") {
+      return res
+        .status(400)
+        .json({ msg: "Password change allowed only for manual login users." });
+    }
+
+    let passwordMatch = await bcrypt.compare(oldPassword, user.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ msg: "Old Password is Incorrect" });
+    }
+
+    let hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedNewPassword;
+
+    await user.save();
+    return res.status(200).json({ msg: "Password Changed Successfully" });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
+    return res.status(500).json({ msg: "Internal Server Error", error });
   }
 };
 
-// Block Unblock User (Admin);
-const blockUnblockUser = async (req, res) => {
-  try {
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ msg: "Internal Server Error" });
-  }
-};
 module.exports = {
   signupUser,
   loginUser,
   otpLogin,
   googleLogin,
   getUserProfile,
-  getAllProfiles,
-  updateUser,
+  getAllUsers,
+  updateUserProfile,
   deleteUser,
+  blockUnblockUser,
   changePassword,
 };

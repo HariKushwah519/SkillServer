@@ -1,49 +1,58 @@
 const mongoose = require("mongoose");
+
 const userSchema = new mongoose.Schema(
-    {
-        firebaseUid: {
-            type: String,
-            unique: true,
-            sparse: true,
-        },
-        name: {
-            type:String,
-            required:true,
-            trim:true,
-        },
-         email: {
-            type:String,
-            sparse:true,
-            trim:true,
-            unique:true,
-        },
-         phone: {
-            type:String,
-            required:true,
-            trim:true,
-            unique:true,
-        },
-         password: {
-            type:String,
-            trim:true,
-            select: false,
-        },
-        role: {
-            type:String,
-            enum: ["user","provider","admin"],
-            default: "user"
-        },
-        authProvider: {
-            type: String,
-            enum: ["google","phone","manual"],
-            required: true,
-        },
-        profileImage: {
-            type: String,
-            trim: true
-        },
+  {
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
-    {timestamps: true}
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      sparse: true,
+      unique: true,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      sparse: true,
+      unique: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      trim: true,
+      select: false,
+    },
+
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+
+    role: {
+      type: String,
+      enum: ["user", "provider", "admin"],
+      default: "user",
+    },
+
+    authProvider: {
+      type: String,
+      enum: ["google", "phone", "manual"],
+      required: true,
+    },
+
+    profileImage: {
+      type: String,
+      trim: true,
+    },
+  },
+  { timestamps: true }
 );
 
-module.exports = mongoose.model("user",userSchema);
+module.exports = mongoose.model("user", userSchema);
